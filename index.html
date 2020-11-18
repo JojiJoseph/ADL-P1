@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title>Image captioning using Attention</title>
+  <link rel="stylesheet" href="./css/modal.css">
+  <link rel="stylesheet" href="./css/normalize.css">
+  <link rel="stylesheet" href="./css/skeleton.css">
+  <link rel="stylesheet" href="./css/toast.css">
+  <link rel="stylesheet" href="./css/style.css">
+  <style>
+    #file-input {
+      display: none;
+    }
+
+    #drag-here {
+      text-align: center;
+      line-height: 200px;
+    }
+
+    #drop-zone {
+      position: relative;
+      border: 5px solid black;
+      text-align: center;
+      background-color: #EEE;
+      min-width: 100%;
+      /* display: inline-block; /* Can use display: inline-block to expand the division*/
+      overflow: auto;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="nav-button-holder">
+    <button id="prev-slide">&#8678;</button><button id="fullscreen"> a</button><button id="next-slide">&#8680;</button>
+  </div>
+  <!-- <section class="slide align-center">
+    <h1 class="huge ">Image Captioning using RNN</h1>
+    <hr>
+    <h2>Joji Joseph</h2>
+  </section> -->
+  <section class="slide">
+    <div class="container">
+      <div class="toast-container hidden-toast" id="toast">
+        <div class="toast">
+          <p id="toast-message">Please upload an image!</p>
+        </div>
+      </div>
+      <h2 class="align-center">Image Captioning Demo</h2>
+      <div id="drop-zone">
+        <img id="preview" class="hidden">
+        <div id="drag-here"><strong>Drag image here</strong></div>
+      </div>
+      <hr>
+      <div>
+        <h2 id="caption-box"></h2>
+      </div>
+      <div class="controls">
+        <label>Temperature <input type="number" min=0.1 max=10 value=1 step=0.1 id="temp"></label><br>
+        <button id="btn-upload" class="btn">Upload</button>
+        <input id="file-input" type="file" accept="image/*">
+        <button id="btn-predict" class="btn">Predict</button>
+      </div>
+      <div id="modal-dialog-container" class="modal-backdrop hidden">
+        <div id="modal-dialog">
+          <div class="modal-title">Prediction</div>
+          <div class="modal-content">
+            <h2 id="output-box"></h2>
+          </div>
+          <div class="modal-controls">
+            <button id="btn-ok" class="btn">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- <section class="slide">
+    <h1>Architecture</h1>
+  </section>
+  <section class="slide">
+    <h1>Reference</h1>
+  </section>
+  <section class="slide">
+    <h1>Thanks!</h1>
+  </section> -->
+  <script>
+
+    var slides = document.getElementsByClassName("slide")
+    for (var slide of slides) {
+      slide.style.display = "none";
+    }
+    slides[0].style.display = "block";
+    var slideIndex = 0;
+
+    var nextSlideButton = document.getElementById("next-slide")
+    nextSlideButton.addEventListener("click", function () {
+      slideIndex++;
+      console.log(slideIndex)
+      console.log(slides)
+      if (slideIndex >= slides.length) {
+        slideIndex = slides.length - 1;
+      }
+      for (var slide of slides) {
+        slide.style.display = "none";
+      }
+      slides[slideIndex].style.display = "block";
+    });
+
+    var prevSlideButton = document.getElementById("prev-slide")
+    prevSlideButton.addEventListener("click", function () {
+      console.log("Here")
+      slideIndex -= 1;
+      if (slideIndex < 0) {
+        slideIndex = 0;
+      }
+      for (var slide of slides) {
+        slide.style.display = "none";
+      }
+      slides[slideIndex].style.display = "block";
+    });
+
+    var fullscreenButton = document.getElementById("fullscreen")
+    fullscreenButton.addEventListener("click", function() {
+      if (isFullscreen()) {
+        document.exitFullscreen();
+      } else {
+
+        document.body.requestFullscreen();
+      }
+    })
+
+    function isFullscreen() {
+      if (window.innerWidth == screen.width && window.innerHeight == screen.height) {
+        return true;
+      }
+      return false;
+    }
+
+    // Elements
+    var uploadButton = document.querySelector("#btn-upload");
+    var predictButton = document.getElementById("btn-predict");
+    var fileInput = document.getElementById("file-input");
+    var preview = document.querySelector("#preview");
+    var dropZone = document.querySelector('#drop-zone');
+    var dragHereLabel = document.querySelector('#drag-here');
+    var modalDialogContainer = document.querySelector('#modal-dialog-container')
+    var outputBox = document.querySelector("#output-box")
+    var captionBox = document.querySelector("#caption-box")
+    var btnOk = document.querySelector('#btn-ok')
+    var toast = document.querySelector('#toast')
+    var tempSelector = document.querySelector("#temp")
+
+    function openToast(toast, message, timeout = 1000) {
+      var toastMessage = toast.querySelector('#toast-message');
+      toastMessage.innerText = message;
+      toast.classList.remove("hidden-toast");
+      setTimeout(function () { toast.classList.add("hidden-toast") }, timeout);
+    }
+    btnOk.addEventListener("click", function (event) {
+      modalDialogContainer.classList.add("hidden")
+    })
+    // Other global variables
+    var image = null;
+    var fileName = "";
+
+    dropZone.addEventListener("dragover", function (event) {
+      event.preventDefault();
+    });
+
+    dropZone.addEventListener("drop", function (event) {
+      event.preventDefault();
+      var inputFile = event.dataTransfer.files[0];
+      var reader = new FileReader();
+      reader.readAsDataURL(inputFile);
+      fileName = inputFile.name.split(".")[0];
+      reader.onload = function (event) {
+        preview.src = event.target.result;
+        image = event.target.result;
+        preview.classList.remove("hidden");
+        dragHereLabel.classList.add("hidden");
+      }
+    });
+
+    uploadButton.addEventListener("click", function () {
+      fileInput.click();
+      fileInput.onchange = function () {
+        var reader = new FileReader();
+        reader.readAsDataURL(fileInput.files[0]);
+        fileName = fileInput.files[0].name.split(".")[0];
+        reader.onload = function (event) {
+          preview.src = event.target.result;
+          preview.classList.remove("hidden");
+          dragHereLabel.classList.add("hidden");
+          image = event.target.result;
+        }
+      }
+    });
+
+    predictButton.addEventListener("click", function () {
+      var canvas = document.createElement("canvas")
+      canvas.height = 299;
+      canvas.width = 299;
+      var ctx = canvas.getContext("2d")
+      if (!preview.src) {
+        openToast(toast, "Please upload an image!");
+        return;
+      }
+      ctx.drawImage(preview, 0, 0, preview.width, preview.height, 0, 0, 299, 299);
+      captionBox.innerText = "Caption is loading..."
+      var data = ctx.getImageData(0, 0, 299, 299).data
+      fetch('', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ "data": Array.from(data), "model": "caption", "temp": temp.value }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          prediction = data.prediction;
+          captionBox.innerText = prediction.replace(prediction[0], prediction[0].toUpperCase()); // Thanks to https://stackoverflow.com/a/64663592
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+          captionBox.innerText = "Some error has occurred. Please try again later."
+        });
+      // console.log(imageData)
+    });
+  </script>
+</body>
+
+</html>
