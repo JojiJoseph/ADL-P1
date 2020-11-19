@@ -43,7 +43,7 @@ def evaluate_from_feature(feature, temp=1):
   x = tf.expand_dims([tokenizer.word_index["<start>"]],axis=-1)
   for i in range(max_len):
     out,hidden = decoder(x, feature,hidden)
-    next_index = tf.random.categorical(out/temp, 1)[0][0].numpy()
+    next_index = tf.random.categorical(out[0]/temp, 1)[0][0].numpy()
     if next_index == tokenizer.word_index["<end>"]:
       break
     caption +=  tokenizer.index_word[next_index] + " "
@@ -61,7 +61,7 @@ def preprocess(data):
 
 def get_prediction(data, temp=1):
     image = tf.convert_to_tensor(data, tf.float32)
-    image = tf.keras.applications.inception_v3.preprocess_input(image)
+    image = tf.keras.applications.mobilenet_v2.preprocess_input(image)
     image = tf.expand_dims(image, 0)
     image = feature_extractor(image)
     encoded = encoder(image)

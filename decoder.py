@@ -34,7 +34,7 @@ class Decoder(tf.keras.Model):
     # print(state)
     x = self.fc1(x)
     x = self.fc2(x)
-    x = tf.squeeze(x, axis=1)
+    # x = tf.squeeze(x, axis=1) # Uncomment if you want batches to be unseperated
     # print("xshape before return", x.shape)
     return x, state
   def reset_state(self, batch_size):
